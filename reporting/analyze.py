@@ -51,6 +51,7 @@ class Analyze(object):
     missing_serving = 'missing_serving'
     missing_ad_rate = 'missing_ad_rate'
     change_auto_order = 'change_auto_order'
+    split_gamesight = 'split_gamesight'
     analysis_dict_file_name = 'analysis_dict.json'
     analysis_dict_key_col = 'key'
     analysis_dict_data_col = 'data'
@@ -75,7 +76,7 @@ class Analyze(object):
         self.class_list = [
             CheckColumnNames, FindPlacementNameCol, CheckAutoDictOrder,
             CheckApiDateLength, GetPacingAnalysis, GetDailyDelivery,
-            GetServingAlerts, GetDailyPacingAlerts]
+            GetServingAlerts, GetDailyPacingAlerts, SplitGamesight]
         if self.df.empty and self.file_name:
             self.load_df_from_file()
 
@@ -1055,6 +1056,52 @@ class AnalyzeBase(object):
     def add_to_analysis_dict(self, df, msg):
         self.aly.add_to_analysis_dict(
             key_col=self.name, message=msg, data=df.to_dict())
+
+
+class SplitGamesight(AnalyzeBase):
+    name = Analyze.split_gamesight
+    fix = True
+    network = 'network'
+    ad_type = 'ad_type'
+
+    def do_analysis_on_data_source(self, source, df):
+        tdf = source.get_raw_df()
+        if self.network not in tdf.columns or tdf.empty:
+            return df
+        unique_networks = tdf[self.network].unique()
+        splits = []
+        if 'google-cm' in unique_networks:
+            splits.append(vmc.api_dc_key)
+        if 'sizmek' in unique_networks:
+            splits.append(vmc.api_szk_key)
+        if 'adwords' in unique_networks:
+            adf = tdf[tdf[self.network] == 'adwords']
+            ad_types = adf[self.ad_type].unique()
+            if 'g' in ad_types:
+                splits.append(vmc.api_aw_key + '-SEM')
+            if 'ytv' in ad_types or 'vp' in ad_types or 'd' in ad_types:
+                splits.append(vmc.api_aw_key + '-YouTube')
+        unknown_networks = [x for x in unique_networks if x not in splits]
+        data_dict = {vmc.vendorkey: [source.key],
+                     'Recommended Splits': [splits],
+                     'Unidentified Networks': [unknown_networks]}
+        df = df.append(pd.DataFrame(data_dict),
+                       ignore_index=True, sort=False)
+        return df
+
+    def do_analysis(self):
+        vendor_keys = self.matrix.api_rs_key
+        df = pd.DataFrame()
+        for vk in vendor_keys:
+            ds = self.matrix.get_data_source(vk)
+            df = self.do_analysis_on_data_source(ds, df)
+        if df.empty:
+            msg = 'No proposed Gamesight data splits.'
+        else:
+            msg = 'Proposed Gamesight split by key as follows:'
+        logging.info('{}\n{}'.format(msg, df.to_string()))
+        # self.aly.add_to_analysis_dict(key_col=self.name,
+        #                               message=msg, data=df.to_dict())
 
 
 class CheckAutoDictOrder(AnalyzeBase):
