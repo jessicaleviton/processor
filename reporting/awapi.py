@@ -70,6 +70,8 @@ class AwApiReportBuilder(object):
     ad = ReportColumn('name', 'Ad', 'ad_group_ad', 'ad')
     display_url = ReportColumn(
         'display_url', 'Display URL', 'ad_group_ad', 'ad')
+    tracking_url = ReportColumn(
+        'tracking_url_template', 'Tracking URL Template', 'ad_group_ad', 'ad')
     headline_1 = ReportColumn(
         'headline_part1', 'Headline 1', 'ad_group_ad', 'ad', 'expanded_text_ad')
     headline_2 = ReportColumn(
@@ -110,7 +112,8 @@ class AwApiReportBuilder(object):
             self.image_ad, self.headline_1, self.headline_2, self.headline_3,
             self.display_url, self.description, self.description_2,
             self.description_text, self.description_text_2, self.headline_text,
-            self.headline_resp_search, self.description_resp_search, self.ad]
+            self.headline_resp_search, self.description_resp_search, self.ad,
+            self.tracking_url]
         self.no_date_params = self.camp_params + self.ag_params + self.ad_params
         self.def_params = self.date_params + self.no_date_params
         self.def_metrics = [self.impressions, self.clicks, self.cost,
