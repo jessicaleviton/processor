@@ -971,23 +971,25 @@ class SplitGamesight(AnalyzeBase):
         tdf = source.get_raw_df()
         if self.network not in tdf.columns or tdf.empty:
             return df
-        unique_networks = tdf[self.network].unique()
+        unique_networks = tdf[self.network].unique().tolist()
         splits = []
         if 'google-cm' in unique_networks:
             splits.append(vmc.api_dc_key)
+            unique_networks.remove('google-cm')
         if 'sizmek' in unique_networks:
             splits.append(vmc.api_szk_key)
+            unique_networks.remove('sizmek')
         if 'adwords' in unique_networks:
             adf = tdf[tdf[self.network] == 'adwords']
             ad_types = adf[self.ad_type].unique()
-            if 'g' in ad_types:
+            if any(t in ad_types for t in ['g', 's']):
                 splits.append(vmc.api_aw_key + '-SEM')
-            if 'ytv' in ad_types or 'vp' in ad_types or 'd' in ad_types:
+            if any(t in ad_types for t in ['vp', 'ytv', 'd']):
                 splits.append(vmc.api_aw_key + '-YouTube')
-        unknown_networks = [x for x in unique_networks if x not in splits]
+            unique_networks.remove('adwords')
         data_dict = {vmc.vendorkey: [source.key],
                      'Recommended Splits': [splits],
-                     'Unidentified Networks': [unknown_networks]}
+                     'Unidentified Networks': [unique_networks]}
         df = df.append(pd.DataFrame(data_dict),
                        ignore_index=True, sort=False)
         return df
